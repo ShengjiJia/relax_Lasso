@@ -1,0 +1,26 @@
+library(KernSmooth)
+
+#######Simulation in Figure2
+n=100
+h=20
+lambda=0.5
+x=1:n
+x1=matrix(1,nrow=n,ncol=n)     #matrix X
+for(i in 1:(n-1)) x1[i,(i+1):n]=0
+X1=x1[,2:n]
+s1=svd(X1)$d
+par(mfrow=c(2,2))
+plot(s1[1:50],ylim=c(0,65),ylab="singular value",main="original X",type="o")
+X2=X1
+for(i in 1:ncol(X1)){X2[,i]=X1[,i]-mean(X1[,i])}
+s2=svd(X2)$d
+plot(s2[1:50],ylim=c(0,65),ylab="singular value",main="centered X",type="o")
+X3=X1
+for(i in 1:ncol(X1)){X3[,i]=X1[,i]-locpoly(x,X1[,i],kernel="epanech",bandwidth=h,gridsize=n)$y}
+s3=svd(X3)$d
+plot(s3[1:50],ylim=c(0,65),ylab="singular value",main="transformed X (proposed I)",type="o")
+R=X2%*%solve(t(X2)%*%X2+n*lambda*diag(1,n-1))%*%t(X2)
+eig=eigen(diag(1,n)-R)
+X4=eig$vectors%*%sqrt(diag(eig$values))%*%t(eig$vectors)%*%X2
+s4=svd(X4)$d
+plot(s4[1:50],ylim=c(0,65),ylab="singular value",main="transformed X (proposed II)",type="o")
