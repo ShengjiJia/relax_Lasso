@@ -82,7 +82,7 @@ opt=which.min(log(model1$deviance/n)+model1$df*0.2*log(n)*log(log(n))/n)   #opti
 estimate=as.vector((which(model1$beta[,opt]!=0)[-1]))-1
 estimate3=refine(estimate,error=4)
 ##############################method4 Proposed I
-h=20       
+h=40       
 xx1=x1
 for(i in 2:n) {xx1[,i]=x1[,i]-locpoly(x,x1[,i],kernel="epanech",bandwidth=h,gridsize=n)$y }      
 y0=y-locpoly(x,y,kernel="epanech",bandwidth=h,gridsize=n)$y           
