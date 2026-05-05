@@ -78,19 +78,19 @@ estimate2=sort(candidate1[1:j1])
 ##############################method3 fused Lasso  
 group=1:n-1          
 model1=grpreg(X=x1[,2:n], y=y, group=group[2:n], penalty="grLasso",family="gaussian", gmax=100) 
-opt=which.min(log(model1$deviance/n)+model1$df*0.2*log(n)*log(log(n))/n)   #optimal lambda
+opt=which.min(log(model1$deviance/n)+model1$df*1.5*log(n)*log(log(n))/n)   #optimal lambda
 estimate=as.vector((which(model1$beta[,opt]!=0)[-1]))-1
-estimate3=refine(estimate,error=4)
-##############################method4 Proposed I
-h=40       
+estimate3=estimate
+##############################method4 relax fused-Lasso I
+h=40
 xx1=x1
 for(i in 2:n) {xx1[,i]=x1[,i]-locpoly(x,x1[,i],kernel="epanech",bandwidth=h,gridsize=n)$y }      
 y0=y-locpoly(x,y,kernel="epanech",bandwidth=h,gridsize=n)$y           
 model2=grpreg(X=xx1[,2:length(y0)], y=y0, group=group[2:length(y0)], penalty="grLasso",family="gaussian", gmax=100) 
-opt=which.min(log(model2$deviance/n)+model2$df*0.2*log(n)*log(log(n))/n)   #optimal lambda
+opt=which.min(log(model2$deviance/n)+model2$df*2.4*log(n)*log(log(n))/n)   #optimal lambda
 estimate=as.vector((which(model2$beta[,opt]!=0)[-1]))-1
-estimate4=refine(estimate,error=4)
-##############################method5 Proposed II
+estimate4=estimate
+##############################method5 relax fused-SCAD II 
 lambda=1
 X=x1[,2:n]
 XX=X                                   #centered X
@@ -99,39 +99,39 @@ R=XX%*%solve(t(XX)%*%XX+n*lambda*diag(1,n-1))%*%t(XX)
 eig=eigen(diag(1,n)-R)
 X2=eig$vectors%*%sqrt(diag(eig$values))%*%t(eig$vectors)%*%XX       #matrix (I-R)^{1/2}(I-11/n)X
 yy=y-mean(y)
-y2=eig$vectors%*%sqrt(diag(eig$values))%*%t(eig$vectors)%*%yy
-model3=grpreg(X=X2, y=y2, group=group[2:length(y2)], penalty="grLasso",family="gaussian", gmax=100)
-opt=which.min(log(model3$deviance/n)+model3$df*0.2*log(n)*log(log(n))/n)   #optimal lambda
+y2=eig$vectors%*%sqrt(diag(eig$values))%*%t(eig$vectors)%*%yy   
+model3=grpreg(X=X2, y=y2, group=group[2:length(y2)], penalty="grSCAD",family="gaussian", gmax=100)
+opt=which.min(log(model3$deviance/n)+model3$df*4*log(n)*log(log(n))/n)   #optimal lambda
 estimate=as.vector((which(model3$beta[,opt]!=0)[-1]))-1
-estimate5=refine(estimate,error=4)
+estimate5=estimate
 ##############################show figures
-par(mfrow=c(2,3))
-plot(x, y, xlim=c(300,800), ylim=c(0,2.5), xlab="locations", ylab="Log 2 ratio", main="CBS", pch=20, col=8)
+par(mfrow=c(3,2))
+plot(x, y, xlim=c(300,830), ylim=c(0,2.5), xlab="locations", ylab="Log 2 ratio", main="CBS", pch=20, col=8)
 fitted=NULL
 for(i in 1:(length(estimate1)+1)){
   fitted=c(fitted,rep(mean(y[(c(0,estimate1,n)[i]+1):(c(0,estimate1,n)[i+1])]), c(0,estimate1,n)[i+1]-c(0,estimate1,n)[i]))
 }
 residual=y-fitted
 lines(fitted,col=2,lwd=2)
-plot(x, y, xlim=c(300,800),  ylim=c(0,2.5), xlab="locations", ylab="Log 2 ratio", main="SaRa", pch=20, col=8)
+plot(x, y, xlim=c(300,830),  ylim=c(0,2.5), xlab="locations", ylab="Log 2 ratio", main="SaRa", pch=20, col=8)
 fitted=NULL
 for(i in 1:(length(estimate2)+1)){
   fitted=c(fitted,rep(mean(y[(c(0,estimate2,n)[i]+1):(c(0,estimate2,n)[i+1])]), c(0,estimate2,n)[i+1]-c(0,estimate2,n)[i]))
 }
 lines(fitted,col=2,lwd=2)
-plot(x, y, xlim=c(300,800),  ylim=c(0,2.5), xlab="locations", ylab="Log 2 ratio", main="fused-Lasso", pch=20, col=8)
+plot(x, y, xlim=c(300,830),  ylim=c(0,2.5), xlab="locations", ylab="Log 2 ratio", main="fused-Lasso", pch=20, col=8)
 fitted=NULL
 for(i in 1:(length(estimate3)+1)){
   fitted=c(fitted,rep(mean(y[(c(0,estimate3,n)[i]+1):(c(0,estimate3,n)[i+1])]), c(0,estimate3,n)[i+1]-c(0,estimate3,n)[i]))
 }
 lines(fitted,col=2,lwd=2)
-plot(x, y, xlim=c(300,800),  ylim=c(0,2.5), xlab="locations", ylab="Log 2 ratio", main="Proposed I", pch=20, col=8)
+plot(x, y, xlim=c(300,830),  ylim=c(0,2.5), xlab="locations", ylab="Log 2 ratio", main="relax fused-Lasso", pch=20, col=8)
 fitted=NULL
 for(i in 1:(length(estimate4)+1)){
   fitted=c(fitted,rep(mean(y[(c(0,estimate4,n)[i]+1):(c(0,estimate4,n)[i+1])]), c(0,estimate4,n)[i+1]-c(0,estimate4,n)[i]))
 }
 lines(fitted,col=2,lwd=2)
-plot(x, y, xlim=c(300,800),  ylim=c(0,2.5), xlab="locations", ylab="Log 2 ratio", main="Proposed II", pch=20, col=8)
+plot(x, y, xlim=c(300,830),  ylim=c(0,2.5), xlab="locations", ylab="Log 2 ratio", main="relax fused-SCAD", pch=20, col=8)
 fitted=NULL
 for(i in 1:(length(estimate5)+1)){
   fitted=c(fitted,rep(mean(y[(c(0,estimate5,n)[i]+1):(c(0,estimate5,n)[i+1])]), c(0,estimate5,n)[i+1]-c(0,estimate5,n)[i]))

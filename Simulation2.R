@@ -68,11 +68,15 @@ localMax<-function (y, span = 5) {   #see original SaRa algorithm
 }
 
 refine<-function (a, error=2){   #delete adjacent estimators
-  x=a[1]
-  if(length(a)>1){
-    for(i in 2:length(a)){
-      if(min(abs(x-a[i]))>error)
-        x=c(x,a[i])
+  if(length(a)==0){
+    x=a}
+  else{
+    x=a[1]
+    if(length(a)>1){
+      for(i in 2:length(a)){
+        if(min(abs(x-a[i]))>error)
+          x=c(x,a[i])
+      }
     }
   }
   return(x)
@@ -121,6 +125,7 @@ for(i in 1:100){
   ######CBS
   CBS=DNAcopy::segment(CNA(y, rep(1,n), 1:n))
   num1=length(CBS$output[,4])-1
+  #estimate=CBS$output[1:num1,4]
   estimate=refine(CBS$output[1:num1,4])
   TP1[i,]=TruePositive(estimate, tau)
   FP1[i,]=FalsePositive(estimate, tau)
@@ -137,30 +142,37 @@ for(i in 1:100){
   }
   ######standard fused-Lasso
   model1=lars(X, y=y, type="lasso", normalize=FALSE, intercept=TRUE, trace=FALSE, max.steps=30)
+  #estimate=unlist(model1$actions)
   estimate=refine(unlist(model1$actions))
   for(j in 1:14){
     TP3[i,j]=TruePositive(estimate[1:j], tau)
     FP3[i,j]=FalsePositive(estimate[1:j], tau)
     Haus3[i,j]=hausdorff(estimate[1:j], tau)
   }
-  ######proposed I
+  ######relax fused-SCAD I
   y1=y-locpoly(x,y,kernel="epanech",bandwidth=h,gridsize=n)$y
-  model2=lars(X1, y=y1, type="lasso", normalize=FALSE, intercept=FALSE, trace=FALSE, max.steps=30)
-  estimate=refine(unlist(model2$actions))
-  for(j in 1:14){
-    TP4[i,j]=TruePositive(estimate[1:j], tau)
-    FP4[i,j]=FalsePositive(estimate[1:j], tau)
-    Haus4[i,j]=hausdorff(estimate[1:j], tau)
+  model2=grpreg(X=X1, y=y1, group=1:(n-1), penalty="grSCAD",family="gaussian", gmax=20)
+  for(j in 1:dim(model2$beta)[2]){
+    #estimate=as.vector((which(model2$beta[2:n,j]!=0)))
+    estimate=refine(as.vector((which(model2$beta[2:n,j]!=0))))
+    if(length(estimate)<15){
+      TP4[i,length(estimate)]=TruePositive(estimate, tau)
+      FP4[i,length(estimate)]=FalsePositive(estimate, tau)
+      Haus4[i,length(estimate)]=hausdorff(estimate, tau)
+    }
   }
-  ######proposed II
+  ######relax fused-SCAD II
   yy=y-mean(y)
   y2=eig$vectors%*%sqrt(diag(eig$values))%*%t(eig$vectors)%*%yy
-  model3=lars(X2, y=y2, type="lasso", normalize=FALSE, intercept=FALSE, trace=FALSE, max.steps=30)
-  estimate=refine(unlist(model3$actions))
-  for(j in 1:14){
-    TP5[i,j]=TruePositive(estimate[1:j], tau)
-    FP5[i,j]=FalsePositive(estimate[1:j], tau)
-    Haus5[i,j]=hausdorff(estimate[1:j], tau)
+  model3=grpreg(X=X2, y=y2, group=1:(n-1), penalty="grSCAD",family="gaussian", gmax=20) 
+  for(j in 1:dim(model3$beta)[2]){
+    #estimate=as.vector((which(model3$beta[2:n,j]!=0)))
+    estimate=refine(as.vector((which(model3$beta[2:n,j]!=0))))
+    if(length(estimate)<15){
+      TP5[i,length(estimate)]=TruePositive(estimate, tau)
+      FP5[i,length(estimate)]=FalsePositive(estimate, tau)
+      Haus5[i,length(estimate)]=hausdorff(estimate, tau)
+    }
   }
 }
 ######show Figure 
@@ -170,19 +182,19 @@ lines(x=1:14,y=apply(TP3,2,mean,na.rm=T),pch=2,col=3, type="b")
 lines(x=1:14,y=apply(TP4,2,mean,na.rm=T),pch=3,col=4, type="b")
 lines(x=1:14,y=apply(TP5,2,mean,na.rm=T),pch=4,col=5, type="b")
 lines(x=1:14,y=apply(TP1,2,mean,na.rm=T),type="l",lty=2)
-#legend("bottomright", legend=c("SaRa","fused-Lasso","Proposed I","Proposed II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
+#legend("bottomright", legend=c("SaRa","fused-Lasso","relax fused-SCAD I","relax fused-SCAD II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
 plot(x=1:14,y=apply(FP2,2,mean,na.rm=T),pch=1,col=2, type="b", ylim=c(0,11), xlab = "Number of selected change points",ylab ="False positives",main="FP, d=1")
 lines(x=1:14,y=apply(FP3,2,mean,na.rm=T),pch=2,col=3, type="b")
 lines(x=1:14,y=apply(FP4,2,mean,na.rm=T),pch=3,col=4, type="b")
 lines(x=1:14,y=apply(FP5,2,mean,na.rm=T),pch=4,col=5, type="b")
 lines(x=1:14,y=apply(FP1,2,mean,na.rm=T),type="l",lty=2)
-#legend("topleft", legend=c("SaRa","fused-Lasso","Proposed I","Proposed II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
+#legend("topleft", legend=c("SaRa","fused-Lasso","relax fused-SCAD I","relax fused-SCAD II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
 plot(x=1:14,y=apply(Haus2,2,mean,na.rm=T),pch=1,col=2, type="b", ylim=c(0,800), xlab = "Number of selected change points",ylab ="Hausdorff distance",main="Hausdorff, d=1")
 lines(x=1:14,y=apply(Haus3,2,mean,na.rm=T),pch=2,col=3, type="b")
 lines(x=1:14,y=apply(Haus4,2,mean,na.rm=T),pch=3,col=4, type="b")
 lines(x=1:14,y=apply(Haus5,2,mean,na.rm=T),pch=4,col=5, type="b")
 lines(x=1:14,y=apply(Haus1,2,mean,na.rm=T),type="l",lty=2)
-legend("topright", legend=c("SaRa","fused-Lasso","Proposed I","Proposed II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
+legend("topright", legend=c("SaRa","fused-Lasso","relax fused-SCAD I","relax fused-SCAD II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
 
 #######Case 2, d=4
 d=4
@@ -219,6 +231,7 @@ for(i in 1:100){
   ######CBS
   CBS=DNAcopy::segment(CNA(t(y), chrom=rep(1,n), maploc=1:n))
   candidate=sort(unique(CBS$output[,4]))
+  #estimate=candidate[-length(candidate)]
   estimate=refine(candidate[-length(candidate)])
   TP1[i,]=TruePositive(estimate, tau)
   FP1[i,]=FalsePositive(estimate, tau)
@@ -238,6 +251,7 @@ for(i in 1:100){
   gLasso=grpreg(X=XXX[,2:length(yy)], y=yy, group=group[2:length(yy)], penalty="grLasso",family="gaussian", gmax=20)   
   for(j in 2:dim(gLasso$beta)[2]){
     candidate=as.vector((which(gLasso$beta[,j]!=0)[d*(1:(length(which(gLasso$beta[,j]!=0))/d))]/d-1)[-1])
+    #estimate=candidate
     estimate=refine(candidate)
     if(length(estimate)<=14){
       TP3[i,length(estimate)]=TruePositive(estimate, tau)
@@ -245,12 +259,13 @@ for(i in 1:100){
       Haus3[i,length(estimate)]=hausdorff(estimate, tau) 
     }
   }
-  ######Proposed I
+  ######relax fused-SCAD I
   yy=as.vector(matrix(c(y[1,]-locpoly(x,y[1,],kernel="epanech",bandwidth=h,gridsize=n)$y, y[2,]-locpoly(x,y[2,],kernel="epanech",bandwidth=h,gridsize=n)$y, 
                         y[3,]-locpoly(x,y[3,],kernel="epanech",bandwidth=h,gridsize=n)$y, y[4,]-locpoly(x,y[4,],kernel="epanech",bandwidth=h,gridsize=n)$y), nrow=d, byrow=T))
-  model1=grpreg(X=XX1[,2:length(yy)], y=yy, group=group[2:length(yy)], penalty="grLasso",family="gaussian", gmax=20) 
+  model1=grpreg(X=XX1[,2:length(yy)], y=yy, group=group[2:length(yy)], penalty="grSCAD",family="gaussian", gmax=20) 
   for(j in 2:dim(model1$beta)[2]){
     candidate=as.vector((which(model1$beta[,j]!=0)[d*(1:(length(which(model1$beta[,j]!=0))/d))]/d-1)[-1])
+    #estimate=candidate
     estimate=refine(candidate)
     if(length(estimate)<=14){
       TP4[i,length(estimate)]=TruePositive(estimate, tau)
@@ -258,12 +273,13 @@ for(i in 1:100){
       Haus4[i,length(estimate)]=hausdorff(estimate, tau) 
     }
   }
-  ######Proposed II
+  ######relax fused-SCAD II
   yy=as.vector(matrix(c(eig$vectors%*%sqrt(diag(eig$values))%*%t(eig$vectors)%*%(y[1,]-mean(y[1,])), eig$vectors%*%sqrt(diag(eig$values))%*%t(eig$vectors)%*%(y[2,]-mean(y[2,])),
                         eig$vectors%*%sqrt(diag(eig$values))%*%t(eig$vectors)%*%(y[3,]-mean(y[3,])), eig$vectors%*%sqrt(diag(eig$values))%*%t(eig$vectors)%*%(y[4,]-mean(y[4,]))), nrow=d, byrow=T))
-  model2=grpreg(X=XX2[,2:length(yy)], y=yy, group=group[2:length(yy)], penalty="grLasso",family="gaussian", gmax=20) 
+  model2=grpreg(X=XX2[,2:length(yy)], y=yy, group=group[2:length(yy)], penalty="grSCAD",family="gaussian", gmax=20) 
   for(j in 2:dim(model2$beta)[2]){
     candidate=as.vector((which(model2$beta[,j]!=0)[d*(1:(length(which(model2$beta[,j]!=0))/d))]/d-1)[-1])
+    #estimate=candidate
     estimate=refine(candidate)
     if(length(estimate)<=14){
       TP5[i,length(estimate)]=TruePositive(estimate, tau)
@@ -278,16 +294,16 @@ lines(x=1:14,y=apply(TP3,2,mean,na.rm=T),pch=2,col=3, type="b")
 lines(x=1:14,y=apply(TP4,2,mean,na.rm=T),pch=3,col=4, type="b")
 lines(x=1:14,y=apply(TP5,2,mean,na.rm=T),pch=4,col=5, type="b")
 lines(x=1:14,y=apply(TP1,2,mean,na.rm=T),type="l",lty=2)
-#legend("bottomright", legend=c("SaRa","fused-Lasso","Proposed I","Proposed II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
+#legend("bottomright", legend=c("SaRa","fused-Lasso","relax fused-SCAD I","relax fused-SCAD II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
 plot(x=1:14,y=apply(FP2,2,mean,na.rm=T),pch=1,col=2, type="b", ylim=c(0,11), xlab = "Number of selected change points",ylab ="False positives",main="FP, d=4")
 lines(x=1:14,y=apply(FP3,2,mean,na.rm=T),pch=2,col=3, type="b")
 lines(x=1:14,y=apply(FP4,2,mean,na.rm=T),pch=3,col=4, type="b")
 lines(x=1:14,y=apply(FP5,2,mean,na.rm=T),pch=4,col=5, type="b")
 lines(x=1:14,y=apply(FP1,2,mean,na.rm=T),type="l",lty=2)
-#legend("topleft", legend=c("SaRa","fused-Lasso","Proposed I","Proposed II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
+#legend("topleft", legend=c("SaRa","fused-Lasso","relax fused-SCAD I","relax fused-SCAD II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
 plot(x=1:14,y=apply(Haus2,2,mean,na.rm=T),pch=1,col=2, type="b", ylim=c(0,800), xlab = "Number of selected change points",ylab ="Hausdorff distance",main="Hausdorff, d=4")
 lines(x=1:14,y=apply(Haus3,2,mean,na.rm=T),pch=2,col=3, type="b")
 lines(x=1:14,y=apply(Haus4,2,mean,na.rm=T),pch=3,col=4, type="b")
 lines(x=1:14,y=apply(Haus5,2,mean,na.rm=T),pch=4,col=5, type="b")
 lines(x=1:14,y=apply(Haus1,2,mean,na.rm=T),type="l",lty=2)
-legend("topright", legend=c("SaRa","fused-Lasso","Proposed I","Proposed II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
+legend("topright", legend=c("SaRa","fused-Lasso","relax fused-SCAD I","relax fused-SCAD II"), pch=c(1,2,3,4), col=c(2,3,4,5), bty="n")
