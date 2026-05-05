@@ -1,6 +1,6 @@
 Paper 
 
-"Change-Point Detection via Relaxing Fused-Lasso"
+"Embedding-Based Relaxed Fused-SCAD for Change-Point Detection"
 
 Code
 
